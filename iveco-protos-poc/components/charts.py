@@ -5,51 +5,30 @@ import streamlit as st
 
 
 IVECO_COLORS = [
-    "#003b5c",
-    "#006b8f",
-    "#0098b8",
-    "#00b8d4",
-    "#55c1b3",
-    "#84cc16",
-    "#f59e0b",
-    "#ef4444",
+    "#00334d",
+    "#006f95",
+    "#00a3bd",
+    "#2f855a",
+    "#64748b",
+    "#b45309",
+    "#7c3aed",
+    "#b91c1c",
 ]
 
 
-def apply_professional_layout(
-    figure,
-    title: str,
-):
+def apply_professional_layout(figure, title: str):
     figure.update_layout(
         title={
             "text": title,
-            "x": 0.02,
+            "x": 0.01,
             "xanchor": "left",
-            "font": {
-                "size": 21,
-                "color": "#003b5c",
-            },
+            "font": {"size": 18, "color": "#00334d"},
         },
-        font={
-            "family": "Arial",
-            "color": "#334155",
-        },
+        font={"family": "Segoe UI", "color": "#334155"},
         paper_bgcolor="rgba(255,255,255,0)",
-        plot_bgcolor="rgba(248,250,252,0.75)",
-        hoverlabel={
-            "bgcolor": "white",
-            "font_size": 13,
-        },
-        margin=dict(
-            l=40,
-            r=30,
-            t=75,
-            b=45,
-        ),
-        transition={
-            "duration": 500,
-            "easing": "cubic-in-out",
-        },
+        plot_bgcolor="#f8fafc",
+        hoverlabel={"bgcolor": "white", "font_size": 12},
+        margin=dict(l=50, r=30, t=70, b=70),
         legend={
             "title": "",
             "orientation": "h",
@@ -58,82 +37,49 @@ def apply_professional_layout(
             "xanchor": "right",
             "x": 1,
         },
+        uniformtext_minsize=10,
+        uniformtext_mode="hide",
     )
 
-    figure.update_xaxes(
-        showgrid=False,
-        linecolor="#cbd5e1",
-    )
-
-    figure.update_yaxes(
-        gridcolor="#e2e8f0",
-        zeroline=False,
-    )
-
+    figure.update_xaxes(showgrid=False, linecolor="#cbd5e1", automargin=True, tickangle=-20)
+    figure.update_yaxes(gridcolor="#e2e8f0", zeroline=False, automargin=True)
     return figure
 
 
-def create_rows_by_sheet_chart(
-    dataframe: pd.DataFrame,
-):
+def create_rows_by_sheet_chart(dataframe: pd.DataFrame):
     summary = (
-        dataframe.groupby(
-            ["fichier_source", "feuille_source"],
-            dropna=False,
-        )
+        dataframe.groupby(["fichier_source", "feuille_source"], dropna=False)
         .size()
-        .reset_index(name="nombre_lignes")
-        .sort_values(
-            "nombre_lignes",
-            ascending=False,
-        )
+        .reset_index(name="enregistrements")
+        .sort_values("enregistrements", ascending=False)
     )
 
     figure = px.bar(
         summary,
         x="feuille_source",
-        y="nombre_lignes",
+        y="enregistrements",
         color="fichier_source",
         barmode="group",
         color_discrete_sequence=IVECO_COLORS,
         text_auto=True,
-        hover_data={
-            "fichier_source": True,
-            "feuille_source": True,
-            "nombre_lignes": ":,",
-        },
+        hover_data={"fichier_source": True, "feuille_source": True, "enregistrements": ":,"},
     )
 
     figure.update_traces(
         marker_line_width=0,
         opacity=0.92,
-        hovertemplate=(
-            "<b>%{x}</b><br>"
-            "Nombre de lignes : %{y:,}<br>"
-            "<extra></extra>"
-        ),
+        hovertemplate="<b>%{x}</b><br>Enregistrements : %{y:,}<br><extra></extra>",
     )
 
-    return apply_professional_layout(
-        figure,
-        "Volume de données par feuille",
-    )
+    return apply_professional_layout(figure, "Volume consolide par feuille")
 
 
-def create_cost_by_sheet_chart(
-    costs_dataframe: pd.DataFrame,
-):
+def create_cost_by_sheet_chart(costs_dataframe: pd.DataFrame):
     summary = (
-        costs_dataframe.groupby(
-            ["fichier_source", "feuille_source"],
-            dropna=False,
-        )["cout_detecte"]
+        costs_dataframe.groupby(["fichier_source", "feuille_source"], dropna=False)["cout_detecte"]
         .sum()
         .reset_index()
-        .sort_values(
-            "cout_detecte",
-            ascending=False,
-        )
+        .sort_values("cout_detecte", ascending=False)
     )
 
     figure = px.bar(
@@ -142,30 +88,19 @@ def create_cost_by_sheet_chart(
         y="cout_detecte",
         color="fichier_source",
         color_discrete_sequence=IVECO_COLORS,
-        text_auto=".2s",
-        hover_data={
-            "cout_detecte": ":,.2f",
-        },
+        text_auto=".3s",
+        hover_data={"cout_detecte": ":,.2f"},
     )
 
     figure.update_traces(
         marker_line_width=0,
-        hovertemplate=(
-            "<b>%{x}</b><br>"
-            "Coût détecté : %{y:,.2f} k€<br>"
-            "<extra></extra>"
-        ),
+        hovertemplate="<b>%{x}</b><br>Cout detecte : %{y:,.2f} k€<br><extra></extra>",
     )
 
-    return apply_professional_layout(
-        figure,
-        "Coûts détectés par feuille",
-    )
+    return apply_professional_layout(figure, "Couts detectes par feuille")
 
 
-def create_cost_distribution_chart(
-    costs_dataframe: pd.DataFrame,
-):
+def create_cost_distribution_chart(costs_dataframe: pd.DataFrame):
     figure = px.histogram(
         costs_dataframe,
         x="cout_detecte",
@@ -173,26 +108,14 @@ def create_cost_distribution_chart(
         nbins=35,
         marginal="box",
         color_discrete_sequence=IVECO_COLORS,
-        hover_data=[
-            "fichier_source",
-            "feuille_source",
-            "libelle_cout",
-        ],
+        hover_data=["fichier_source", "feuille_source", "libelle_cout"],
     )
 
-    figure.update_traces(
-        opacity=0.78,
-    )
-
-    return apply_professional_layout(
-        figure,
-        "Distribution détaillée des coûts",
-    )
+    figure.update_traces(opacity=0.78)
+    return apply_professional_layout(figure, "Distribution des couts")
 
 
-def create_cost_boxplot(
-    costs_dataframe: pd.DataFrame,
-):
+def create_cost_boxplot(costs_dataframe: pd.DataFrame):
     figure = px.box(
         costs_dataframe,
         x="feuille_source",
@@ -200,81 +123,42 @@ def create_cost_boxplot(
         color="feuille_source",
         points="outliers",
         color_discrete_sequence=IVECO_COLORS,
-        hover_data=[
-            "fichier_source",
-            "libelle_cout",
-        ],
+        hover_data=["fichier_source", "libelle_cout"],
     )
 
-    return apply_professional_layout(
-        figure,
-        "Dispersion et valeurs atypiques des coûts",
-    )
+    return apply_professional_layout(figure, "Dispersion des couts")
 
 
-def create_cost_treemap(
-    costs_dataframe: pd.DataFrame,
-):
+def create_cost_treemap(costs_dataframe: pd.DataFrame):
     prepared_dataframe = costs_dataframe.copy()
+    prepared_dataframe["cout_absolu"] = prepared_dataframe["cout_detecte"].abs()
+    prepared_dataframe = prepared_dataframe[prepared_dataframe["cout_absolu"] > 0]
 
-    prepared_dataframe["cout_absolu"] = (
-        prepared_dataframe["cout_detecte"].abs()
-    )
+    if prepared_dataframe.empty:
+        return None
 
-    prepared_dataframe = prepared_dataframe[
-        prepared_dataframe["cout_absolu"] > 0
+    path_columns = [
+        column
+        for column in ["fichier_source", "feuille_source", "systeme", "composant", "prototype"]
+        if column in prepared_dataframe.columns
     ]
 
     figure = px.treemap(
         prepared_dataframe,
-        path=[
-            "fichier_source",
-            "feuille_source",
-            "libelle_cout",
-        ],
+        path=path_columns,
         values="cout_absolu",
         color="cout_detecte",
-        color_continuous_scale=[
-            "#bae6fd",
-            "#0284c7",
-            "#003b5c",
-        ],
-        hover_data={
-            "cout_detecte": ":,.2f",
-            "cout_absolu": False,
-        },
+        color_continuous_scale=["#dbeafe", "#0284c7", "#00334d"],
+        hover_data={"cout_detecte": ":,.2f", "cout_absolu": False},
     )
 
-    figure.update_traces(
-        textinfo="label+value+percent parent",
-    )
-
-    return apply_professional_layout(
-        figure,
-        "Répartition hiérarchique des coûts",
-    )
+    figure.update_traces(textinfo="label+value+percent parent", textfont_size=12)
+    return apply_professional_layout(figure, "Repartition hierarchique des couts")
 
 
-def create_top_costs_chart(
-    costs_dataframe: pd.DataFrame,
-):
-    top_costs = (
-        costs_dataframe.nlargest(
-            20,
-            "cout_detecte",
-        )
-        .sort_values(
-            "cout_detecte",
-            ascending=True,
-        )
-        .copy()
-    )
-
-    top_costs["description"] = (
-        top_costs["feuille_source"].astype(str)
-        + " | "
-        + top_costs["libelle_cout"].astype(str).str[:55]
-    )
+def create_top_costs_chart(costs_dataframe: pd.DataFrame):
+    top_costs = costs_dataframe.nlargest(20, "cout_detecte").sort_values("cout_detecte").copy()
+    top_costs["description"] = top_costs["libelle_cout"].astype(str).str.slice(0, 70)
 
     figure = px.bar(
         top_costs,
@@ -282,11 +166,7 @@ def create_top_costs_chart(
         y="description",
         orientation="h",
         color="cout_detecte",
-        color_continuous_scale=[
-            "#7dd3fc",
-            "#0284c7",
-            "#003b5c",
-        ],
+        color_continuous_scale=["#bae6fd", "#0284c7", "#00334d"],
         text_auto=".3s",
         hover_data={
             "fichier_source": True,
@@ -297,79 +177,47 @@ def create_top_costs_chart(
         },
     )
 
-    figure.update_layout(
-        height=650,
-    )
-
-    return apply_professional_layout(
-        figure,
-        "Top 20 des coûts détectés",
-    )
+    figure.update_layout(height=650, showlegend=False)
+    return apply_professional_layout(figure, "Top 20 des couts detectes")
 
 
-def create_sheet_share_chart(
-    dataframe: pd.DataFrame,
-):
+def create_sheet_share_chart(dataframe: pd.DataFrame):
     summary = (
         dataframe["feuille_source"]
         .value_counts(dropna=False)
         .rename_axis("feuille_source")
-        .reset_index(name="nombre_lignes")
+        .reset_index(name="enregistrements")
     )
 
     figure = go.Figure(
         data=[
             go.Pie(
                 labels=summary["feuille_source"],
-                values=summary["nombre_lignes"],
+                values=summary["enregistrements"],
                 hole=0.62,
-                marker={
-                    "colors": IVECO_COLORS,
-                    "line": {
-                        "color": "white",
-                        "width": 3,
-                    },
-                },
-                textinfo="label+percent",
-                hovertemplate=(
-                    "<b>%{label}</b><br>"
-                    "Lignes : %{value:,}<br>"
-                    "Part : %{percent}<br>"
-                    "<extra></extra>"
-                ),
+                marker={"colors": IVECO_COLORS, "line": {"color": "white", "width": 2}},
+                textinfo="percent",
+                hovertemplate="<b>%{label}</b><br>Enregistrements : %{value:,}<br>Part : %{percent}<br><extra></extra>",
             )
         ]
     )
 
     figure.add_annotation(
-        text=f"{len(dataframe):,}<br>lignes",
+        text=f"{len(dataframe):,}<br>records",
         x=0.5,
         y=0.5,
         showarrow=False,
-        font={
-            "size": 20,
-            "color": "#003b5c",
-        },
+        font={"size": 18, "color": "#00334d"},
     )
 
-    return apply_professional_layout(
-        figure,
-        "Répartition des lignes par feuille",
-    )
+    return apply_professional_layout(figure, "Repartition par feuille")
 
 
-def create_numeric_correlation_chart(
-    dataframe: pd.DataFrame,
-):
-    numeric_dataframe = dataframe.select_dtypes(
-        include="number"
-    ).drop(
+def create_numeric_correlation_chart(dataframe: pd.DataFrame):
+    numeric_dataframe = dataframe.select_dtypes(include="number").drop(
         columns=[
             column
-            for column in [
-                "id_ligne",
-                "ligne_source",
-            ]
+            for column in ["id_ligne", "ligne_source"]
             if column in dataframe.columns
         ],
         errors="ignore",
@@ -384,88 +232,52 @@ def create_numeric_correlation_chart(
     figure = px.imshow(
         correlation,
         text_auto=".2f",
-        color_continuous_scale=[
-            "#b91c1c",
-            "#f8fafc",
-            "#0369a1",
-        ],
+        color_continuous_scale=["#b91c1c", "#f8fafc", "#0369a1"],
         zmin=-1,
         zmax=1,
         aspect="auto",
     )
 
-    return apply_professional_layout(
-        figure,
-        "Corrélations entre les colonnes numériques",
-    )
+    return apply_professional_layout(figure, "Correlations entre variables numeriques")
 
 
-def display_detailed_charts(
-    dataframe: pd.DataFrame,
-    costs_dataframe: pd.DataFrame,
-) -> None:
-    st.markdown(
-        '<div class="section-title">Analyse graphique avancée</div>',
-        unsafe_allow_html=True,
-    )
+def display_detailed_charts(dataframe: pd.DataFrame, costs_dataframe: pd.DataFrame) -> None:
+    st.markdown('<div class="section-title">Analyse detaillee</div>', unsafe_allow_html=True)
 
     volume_tab, cost_tab, statistical_tab = st.tabs(
-        [
-            "Volumes",
-            "Coûts",
-            "Analyse statistique",
-        ]
+        ["Volumes", "Couts", "Analyse statistique"]
     )
 
     plotly_config = {
         "displaylogo": False,
         "responsive": True,
         "scrollZoom": True,
-        "modeBarButtonsToRemove": [
-            "lasso2d",
-        ],
+        "modeBarButtonsToRemove": ["lasso2d"],
     }
 
     with volume_tab:
-        first_column, second_column = st.columns(
-            [1.35, 1]
-        )
+        first_column, second_column = st.columns([1.35, 1])
 
         with first_column:
-            rows_chart = create_rows_by_sheet_chart(
-                dataframe
-            )
-
             st.plotly_chart(
-                rows_chart,
+                create_rows_by_sheet_chart(dataframe),
                 use_container_width=True,
                 config=plotly_config,
             )
 
         with second_column:
-            share_chart = create_sheet_share_chart(
-                dataframe
-            )
-
             st.plotly_chart(
-                share_chart,
+                create_sheet_share_chart(dataframe),
                 use_container_width=True,
                 config=plotly_config,
             )
 
     with cost_tab:
         if costs_dataframe.empty:
-            st.info(
-                "Aucune donnée de coût détectée pour les filtres "
-                "sélectionnés."
-            )
+            st.info("Aucune donnee de cout detectee pour les filtres selectionnes.")
         else:
-            cost_by_sheet_chart = create_cost_by_sheet_chart(
-                costs_dataframe
-            )
-
             st.plotly_chart(
-                cost_by_sheet_chart,
+                create_cost_by_sheet_chart(costs_dataframe),
                 use_container_width=True,
                 config=plotly_config,
             )
@@ -473,84 +285,48 @@ def display_detailed_charts(
             first_column, second_column = st.columns(2)
 
             with first_column:
-                distribution_chart = (
-                    create_cost_distribution_chart(
-                        costs_dataframe
-                    )
-                )
-
                 st.plotly_chart(
-                    distribution_chart,
+                    create_cost_distribution_chart(costs_dataframe),
                     use_container_width=True,
                     config=plotly_config,
                 )
 
             with second_column:
-                boxplot_chart = create_cost_boxplot(
-                    costs_dataframe
-                )
-
                 st.plotly_chart(
-                    boxplot_chart,
+                    create_cost_boxplot(costs_dataframe),
                     use_container_width=True,
                     config=plotly_config,
                 )
 
-            treemap_chart = create_cost_treemap(
-                costs_dataframe
-            )
+            treemap_chart = create_cost_treemap(costs_dataframe)
+            if treemap_chart is not None:
+                st.plotly_chart(treemap_chart, use_container_width=True, config=plotly_config)
 
             st.plotly_chart(
-                treemap_chart,
-                use_container_width=True,
-                config=plotly_config,
-            )
-
-            top_costs_chart = create_top_costs_chart(
-                costs_dataframe
-            )
-
-            st.plotly_chart(
-                top_costs_chart,
+                create_top_costs_chart(costs_dataframe),
                 use_container_width=True,
                 config=plotly_config,
             )
 
     with statistical_tab:
-        correlation_chart = (
-            create_numeric_correlation_chart(
-                dataframe
-            )
-        )
+        correlation_chart = create_numeric_correlation_chart(dataframe)
 
         if correlation_chart is None:
-            st.info(
-                "Au moins deux colonnes numériques sont nécessaires "
-                "pour calculer les corrélations."
-            )
+            st.info("Au moins deux variables numeriques sont necessaires pour calculer les correlations.")
         else:
-            st.plotly_chart(
-                correlation_chart,
-                use_container_width=True,
-                config=plotly_config,
-            )
+            st.plotly_chart(correlation_chart, use_container_width=True, config=plotly_config)
 
-        numeric_dataframe = dataframe.select_dtypes(
-            include="number"
-        )
+        numeric_dataframe = dataframe.select_dtypes(include="number")
 
         if not numeric_dataframe.empty:
-            st.markdown(
-                "### Statistiques descriptives"
-            )
-
+            st.markdown("### Statistiques descriptives")
             statistics = (
                 numeric_dataframe.describe()
                 .transpose()
                 .reset_index()
                 .rename(
                     columns={
-                        "index": "colonne",
+                        "index": "variable",
                         "count": "nombre",
                         "mean": "moyenne",
                         "std": "ecart_type",
@@ -563,8 +339,4 @@ def display_detailed_charts(
                 )
             )
 
-            st.dataframe(
-                statistics,
-                use_container_width=True,
-                hide_index=True,
-            )
+            st.dataframe(statistics, use_container_width=True, hide_index=True)

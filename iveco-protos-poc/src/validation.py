@@ -1,12 +1,7 @@
 import pandas as pd
 
 
-METADATA_COLUMNS = {
-    "id_ligne",
-    "fichier_source",
-    "feuille_source",
-    "ligne_source",
-}
+METADATA_COLUMNS = {"id_ligne", "fichier_source", "feuille_source", "ligne_source"}
 
 
 def build_issue(
@@ -27,15 +22,13 @@ def build_issue(
         "ligne_source": source_row,
         "severite": severity,
         "type_anomalie": issue_type,
-        "colonne": column_name,
+        "variable": column_name,
         "valeur": value,
-        "description": description,
+        "message": description,
     }
 
 
-def validate_dataframe(
-    dataframe: pd.DataFrame,
-) -> dict:
+def validate_dataframe(dataframe: pd.DataFrame) -> dict:
     empty_report = {
         "total_rows": 0,
         "duplicate_rows": 0,
@@ -49,42 +42,26 @@ def validate_dataframe(
         return empty_report
 
     issues = []
-
-    data_columns = [
-        column
-        for column in dataframe.columns
-        if column not in METADATA_COLUMNS
-    ]
+    data_columns = [column for column in dataframe.columns if column not in METADATA_COLUMNS]
 
     if not data_columns:
         report = empty_report.copy()
         report["total_rows"] = len(dataframe)
         return report
 
-    duplicate_mask = dataframe.duplicated(
-        subset=data_columns,
-        keep=False,
-    )
-
+    duplicate_mask = dataframe.duplicated(subset=data_columns, keep=False)
     duplicate_rows = int(duplicate_mask.sum())
-
     duplicate_data = dataframe.loc[
         duplicate_mask,
         [
             column
-            for column in [
-                "id_ligne",
-                "fichier_source",
-                "feuille_source",
-                "ligne_source",
-            ]
+            for column in ["id_ligne", "fichier_source", "feuille_source", "ligne_source"]
             if column in dataframe.columns
         ],
     ]
 
     for row in duplicate_data.itertuples(index=False):
         row_dict = row._asdict()
-
         issues.append(
             build_issue(
                 row_id=row_dict.get("id_ligne"),
@@ -92,29 +69,20 @@ def validate_dataframe(
                 sheet_name=row_dict.get("feuille_source"),
                 source_row=row_dict.get("ligne_source"),
                 issue_type="Doublon",
-                column_name="Plusieurs colonnes",
+                column_name="donnees_metier",
                 value="",
-                description="Ligne présente plusieurs fois.",
+                description="Cette information apparait plusieurs fois dans les donnees consolidees.",
                 severity="Moyenne",
             )
         )
 
-    missing_cells = int(
-        dataframe[data_columns].isna().sum().sum()
-    )
-
-    numeric_columns = dataframe[
-        data_columns
-    ].select_dtypes(
-        include="number"
-    ).columns.tolist()
-
+    missing_cells = int(dataframe[data_columns].isna().sum().sum())
+    numeric_columns = dataframe[data_columns].select_dtypes(include="number").columns.tolist()
     negative_values = 0
 
     for column in numeric_columns:
         negative_mask = dataframe[column].lt(0)
         negative_values += int(negative_mask.sum())
-
         negative_rows = dataframe.loc[
             negative_mask,
             [
@@ -132,47 +100,26 @@ def validate_dataframe(
 
         for row in negative_rows.itertuples(index=False):
             row_dict = row._asdict()
-
             issues.append(
                 build_issue(
                     row_id=row_dict.get("id_ligne"),
                     file_name=row_dict.get("fichier_source"),
                     sheet_name=row_dict.get("feuille_source"),
                     source_row=row_dict.get("ligne_source"),
-                    issue_type="Valeur négative",
+                    issue_type="Valeur negative",
                     column_name=column,
                     value=row_dict.get(column),
-                    description=(
-                        "Valeur négative à vérifier dans DAP ou CID."
-                    ),
+                    description="Montant negatif a verifier dans DAP ou CID avant export Power BI.",
                     severity="Haute",
                 )
             )
 
-    total_cells = max(
-        len(dataframe) * len(data_columns),
-        1,
-    )
-
+    total_cells = max(len(dataframe) * len(data_columns), 1)
     missing_ratio = missing_cells / total_cells
-    duplicate_ratio = duplicate_rows / max(
-        len(dataframe),
-        1,
-    )
+    duplicate_ratio = duplicate_rows / max(len(dataframe), 1)
     negative_ratio = negative_values / total_cells
-
-    penalty = (
-        missing_ratio * 45
-        + duplicate_ratio * 35
-        + negative_ratio * 20
-    )
-
-    quality_score = max(
-        0.0,
-        min(100.0, 100.0 - penalty),
-    )
-
-    issues_dataframe = pd.DataFrame(issues)
+    penalty = missing_ratio * 45 + duplicate_ratio * 35 + negative_ratio * 20
+    quality_score = max(0.0, min(100.0, 100.0 - penalty))
 
     return {
         "total_rows": len(dataframe),
@@ -180,5 +127,5 @@ def validate_dataframe(
         "missing_cells": missing_cells,
         "negative_values": negative_values,
         "quality_score": quality_score,
-        "issues": issues_dataframe,
+        "issues": pd.DataFrame(issues),
     }
