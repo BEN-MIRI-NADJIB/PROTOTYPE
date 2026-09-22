@@ -130,29 +130,124 @@ def create_cost_boxplot(costs_dataframe: pd.DataFrame):
 
 
 def create_cost_treemap(costs_dataframe: pd.DataFrame):
+    if costs_dataframe.empty or "cout_detecte" not in costs_dataframe.columns:
+        return None
+
     prepared_dataframe = costs_dataframe.copy()
+    prepared_dataframe["cout_detecte"] = pd.to_numeric(
+        prepared_dataframe["cout_detecte"], errors="coerce"
+    )
+    prepared_dataframe = prepared_dataframe.dropna(subset=["cout_detecte"]).copy()
     prepared_dataframe["cout_absolu"] = prepared_dataframe["cout_detecte"].abs()
-    prepared_dataframe = prepared_dataframe[prepared_dataframe["cout_absolu"] > 0]
+    prepared_dataframe = prepared_dataframe[prepared_dataframe["cout_absolu"] > 0].copy()
 
     if prepared_dataframe.empty:
         return None
 
     path_columns = [
         column
-        for column in ["fichier_source", "feuille_source", "systeme", "composant", "prototype"]
+        for column in [
+            "fichier_source",
+            "feuille_source",
+            "systeme",
+            "composant",
+            "prototype",
+        ]
         if column in prepared_dataframe.columns
     ]
 
-    figure = px.treemap(
-        prepared_dataframe,
-        path=path_columns,
-        values="cout_absolu",
-        color="cout_detecte",
-        color_continuous_scale=["#dbeafe", "#0284c7", "#00334d"],
-        hover_data={"cout_detecte": ":,.2f", "cout_absolu": False},
+    if not path_columns:
+        return None
+
+    missing_labels = {
+        "fichier_source": "Fichier non renseigne",
+        "feuille_source": "Feuille non renseignee",
+        "systeme": "Systeme non renseigne",
+        "composant": "Composant non renseigne",
+        "prototype": "Prototype non renseigne",
+    }
+
+    for column in path_columns:
+        values = prepared_dataframe[column].astype("string").str.strip()
+        invalid_values = values.isna() | values.eq("") | values.str.lower().isin(
+            ["none", "nan", "nat", "null", "<na>"]
+        )
+        prepared_dataframe[column] = values.mask(
+            invalid_values,
+            missing_labels.get(column, "Non renseigne"),
+        ).fillna(missing_labels.get(column, "Non renseigne"))
+
+    grouped_dataframe = (
+        prepared_dataframe.groupby(path_columns, as_index=False, dropna=False)
+        .agg(
+            cout_absolu=("cout_absolu", "sum"),
+            cout_detecte=("cout_detecte", "sum"),
+        )
     )
 
-    figure.update_traces(textinfo="label+value+percent parent", textfont_size=12)
+    node_totals = {}
+    node_signed_totals = {}
+    node_labels = {}
+    node_parents = {}
+
+    root_id = "root"
+    node_totals[root_id] = float(grouped_dataframe["cout_absolu"].sum())
+    node_signed_totals[root_id] = float(grouped_dataframe["cout_detecte"].sum())
+    node_labels[root_id] = "Tous les couts"
+    node_parents[root_id] = ""
+
+    for _, row in grouped_dataframe.iterrows():
+        parent_id = root_id
+        hierarchy_parts = []
+        absolute_cost = float(row["cout_absolu"])
+        signed_cost = float(row["cout_detecte"])
+
+        for level, column in enumerate(path_columns):
+            label = str(row[column])
+            hierarchy_parts.append(label)
+            node_id = f"niveau_{level}::" + "||".join(hierarchy_parts)
+
+            if node_id not in node_totals:
+                node_totals[node_id] = 0.0
+                node_signed_totals[node_id] = 0.0
+                node_labels[node_id] = label
+                node_parents[node_id] = parent_id
+
+            node_totals[node_id] += absolute_cost
+            node_signed_totals[node_id] += signed_cost
+            parent_id = node_id
+
+    node_ids = list(node_totals.keys())
+    node_values = [node_totals[node_id] for node_id in node_ids]
+    node_colors = [node_signed_totals[node_id] for node_id in node_ids]
+
+    figure = go.Figure(
+        go.Treemap(
+            ids=node_ids,
+            labels=[node_labels[node_id] for node_id in node_ids],
+            parents=[node_parents[node_id] for node_id in node_ids],
+            values=node_values,
+            branchvalues="total",
+            marker={
+                "colors": node_colors,
+                "colorscale": ["#dbeafe", "#0284c7", "#00334d"],
+                "line": {"color": "white", "width": 1},
+                "colorbar": {"title": "Cout detecte"},
+            },
+            customdata=node_colors,
+            textinfo="label+value+percent parent",
+            textfont={"size": 12},
+            hovertemplate=(
+                "<b>%{label}</b><br>"
+                "Cout absolu : %{value:,.2f} k€<br>"
+                "Cout detecte : %{customdata:,.2f} k€<br>"
+                "Part du parent : %{percentParent:.2%}<br>"
+                "<extra></extra>"
+            ),
+            root={"color": "#e2e8f0"},
+        )
+    )
+
     return apply_professional_layout(figure, "Repartition hierarchique des couts")
 
 
