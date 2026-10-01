@@ -2,8 +2,20 @@ from io import BytesIO
 from pathlib import Path
 import re
 import unicodedata
+import warnings
 import pandas as pd
 from src.classification import classify_sheet, norm, normalize_status
+
+warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
+
+# Feuilles réellement utiles : FT par prototype, fournisseurs, CID, planning MASTER.
+# Les autres (KPI, macros, historiques, 'Mistake Tracer' d'un million de lignes...) ralentissent sans rien apporter.
+BUSINESS_SHEETS = {"ft_impact", "ft_impact_global", "cid_stato_n", "r01_concac_proto", "ft_steps"}
+
+
+def is_business_sheet(sheet_name: str) -> bool:
+    name = norm(sheet_name)
+    return name in BUSINESS_SHEETS or name.startswith("supplier_list")
 
 HEADER_KEYWORDS = {
     "ft", "description_english", "description_french", "dpt_ng", "proto_impact", "cid", "dap",
@@ -22,7 +34,7 @@ ALIASES = {
     "delta_forecast_vs_need": "statut_impact", "impact_of_delay_if_late": "consequence",
     "demo_plan_b_status": "plan_b", "plan_b_demo": "plan_b_detail", "owner": "responsable",
     "ft_status": "statut_ft", "check_dmu_status": "statut_dmu", "maturity_at_part_order": "maturite",
-    "material_cost": "cout_reel", "material_cost_eur": "cout_reel", "montant_k": "cout_reel",
+    "material_cost": "cout_reel", "material_cost_eur": "cout_reel", "montant_k": "cout_reel_keur",
 }
 
 
@@ -34,7 +46,7 @@ def _ascii(value) -> str:
 def _unique(columns):
     out, counts = [], {}
     for i, col in enumerate(columns):
-        base = norm(col) or f"variable_{i+1}"
+        base = (norm(col) or f"variable_{i+1}")[:60]
         base = ALIASES.get(base, base)
         counts[base] = counts.get(base, 0) + 1
         out.append(base if counts[base] == 1 else f"{base}_{counts[base]}")
@@ -57,9 +69,10 @@ def _header_row(raw: pd.DataFrame) -> int:
     best_idx, best_score = 0, -1
     for idx in range(min(len(raw), 80)):
         vals = [norm(v) for v in raw.iloc[idx].tolist() if pd.notna(v)]
-        keyword_hits = sum(1 for v in vals if v in HEADER_KEYWORDS or any(k in v for k in HEADER_KEYWORDS))
+        exact_hits = sum(1 for v in vals if v in HEADER_KEYWORDS)
+        partial_hits = sum(1 for v in vals if v not in HEADER_KEYWORDS and any(len(k) > 3 and k in v for k in HEADER_KEYWORDS))
         unique_text = len({v for v in vals if v})
-        score = keyword_hits * 15 + min(unique_text, 20)
+        score = exact_hits * 15 + partial_hits * 3 + min(unique_text, 20)
         if score > best_score:
             best_idx, best_score = idx, score
     return best_idx
@@ -113,12 +126,14 @@ def _standardize(frame: pd.DataFrame, file_name: str, sheet_name: str, header_ro
     return frame.reset_index(drop=True)
 
 
-def load_excel_file(payload):
+def load_excel_file(payload, only_business=True):
     sheets, errors = [], []
     try:
         file_name, source = _prepare(payload)
         workbook = pd.ExcelFile(source, engine="openpyxl")
         for sheet_name in workbook.sheet_names:
+            if only_business and not is_business_sheet(sheet_name):
+                continue
             try:
                 raw = pd.read_excel(workbook, sheet_name=sheet_name, header=None, dtype=object)
                 raw = raw.dropna(axis=0, how="all").dropna(axis=1, how="all")

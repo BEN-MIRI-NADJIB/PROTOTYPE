@@ -51,7 +51,10 @@ def normalize_status(value) -> str:
     text = norm(value)
     if not text:
         return "NON RENSEIGNE"
+    if text in {"0", "x"}: return "NON RENSEIGNE"
     if any(k in text for k in ("cancel", "annul")): return "ANNULE"
+    if text in {"in_line", "on_time", "no_check_needed", "not_needed"}: return "OK"
+    if text.startswith("email_sent") or text in {"open", "opened", "waiting_dmu_check"}: return "EN COURS"
     if any(k in text for k in ("borderline", "at_risk", "risk")): return "A RISQUE"
     if any(k in text for k in ("late", "retard", "delayed")): return "EN RETARD"
     if any(k in text for k in ("missing", "not_found", "not_exist")): return "MANQUANT"
