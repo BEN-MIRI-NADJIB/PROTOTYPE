@@ -20,7 +20,8 @@ def is_business_sheet(sheet_name: str) -> bool:
 HEADER_KEYWORDS = {
     "ft", "description_english", "description_french", "dpt_ng", "proto_impact", "cid", "dap",
     "part_number", "year", "week", "plan", "sent", "supplier", "material", "build_steps",
-    "systems", "systems_domain", "proto_id", "category", "unit"
+    "systems", "systems_domain", "proto_id", "category", "unit", "ft_status", "info_ft",
+    "info_montage", "kpi_montage", "impact_global", "scheduled_date", "sending_date"
 }
 ALIASES = {
     "dpt": "departement", "dpt_ng": "departement", "dept": "departement", "department": "departement",
@@ -33,7 +34,12 @@ ALIASES = {
     "new_build_step_pe": "etape_fabrication", "build_steps": "etape_fabrication",
     "delta_forecast_vs_need": "statut_impact", "impact_of_delay_if_late": "consequence",
     "demo_plan_b_status": "plan_b", "plan_b_demo": "plan_b_detail", "owner": "responsable",
-    "ft_status": "statut_ft", "check_dmu_status": "statut_dmu", "maturity_at_part_order": "maturite",
+    "ft_status": "statut_ft", "check_dmu_status": "statut_dmu", "check_dmu": "statut_dmu",
+    "impact": "statut_impact", "impact_global": "impact_global",
+    "info_ft": "info_ft", "info_montage": "info_montage", "kpi_montage": "kpi_montage",
+    "kpi_confidence_level_vs_pro_activities": "kpi_confiance",
+    "step": "etape_fabrication", "maturity_at_part_order": "maturite",
+    "nb_scheduled_nw": "dap_volume_forecast", "nb_nw_sent": "dap_volume_sent",
     "material_cost": "cout_reel", "material_cost_eur": "cout_reel", "montant_k": "cout_reel_keur",
 }
 

@@ -25,7 +25,6 @@ Chaque ligne FT de `FT_Impact` (ou `FT_Impact_Global`) porte les deux parties. L
 Score : points du statut le plus mauvais, plus étape critique, absence de Plan B, écart de plus de 30 jours, gravité de la conséquence véhicule et urgence (besoin sous 28 jours).
 
 ## Installation (Windows)
-```powershell
 py -m venv .venv
 .venv\Scripts\activate
 py -m pip install -r requirements.txt
@@ -34,9 +33,7 @@ streamlit run app.py
 
 ## Tests
 Copier les `.xlsm` dans `data/` (ignorés par Git), puis :
-```powershell
 pytest -q
-```
 Sans fichiers, le test sur les vrais classeurs est ignoré, les 7 autres tournent sur des classeurs synthétiques.
 
 ## Onglets

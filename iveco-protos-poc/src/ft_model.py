@@ -133,9 +133,11 @@ def _enrichment(loaded):
 
 def _model_row(r, proto, today, suppliers, cids):
     key = ft_key(r.get("ft"))
-    dmu = normalize_status(_val(r, ["statut_dmu"]))
-    ftst = normalize_status(_val(r, ["statut_ft"]))
-    fab = normalize_status(_val(r, ["statut_impact"]))
+    # Les Follow-up n'utilisent pas tous les mêmes colonnes.
+    # Priorité aux statuts explicites, puis aux colonnes INFO/KPI réellement présentes dans P2/P4/P5.
+    dmu = normalize_status(_val(r, ["statut_dmu", "check_dmu", "kpi_confiance"]))
+    ftst = normalize_status(_val(r, ["statut_ft", "info_ft", "impact_global"]))
+    fab = normalize_status(_val(r, ["statut_impact", "info_montage", "kpi_montage"]))
     f = _num(_val(r, ["dap_volume_forecast", "nb_dap_prevue_sur_la_ft"]))
     s = _num(_val(r, ["dap_volume_sent"]))
     if f and s is None and "dap_volume_sent" in r:  # colonne présente mais vide = aucun DAP envoyé
@@ -144,7 +146,7 @@ def _model_row(r, proto, today, suppliers, cids):
     dap_late = bool(f and s is not None and s < f and planned and max(planned) < tuple(today.isocalendar()[:2]))
     cid = cids.get((proto, key))
     etude = study_status(dmu, ftst, dap_late)
-    step = _text(_val(r, ["etape_fabrication", "steps"]))
+    step = _text(_val(r, ["etape_fabrication", "steps", "step"]))
     need = _date(_val(r, ["need_for_the_parts", "needs_for_parts"]))
     recv = _date(_val(r, ["date_reception_prevue"]))
     gap = (recv - need).days if need and recv else None
@@ -272,13 +274,17 @@ def data_warnings(loaded, ft: pd.DataFrame) -> list:
         content = df.drop(columns=[c for c in ("prototype", "fichier_source", "cle_metier", "ligne_source") if c in df.columns])
         sig = int(pd.util.hash_pandas_object(content.astype(str), index=False).sum())
         sigs.setdefault(sig, []).append(proto)
-        if not {"statut_dmu", "statut_ft", "statut_impact"} & set(df.columns):
-            warns.append(f"{proto} : la feuille FT n'a aucune colonne de statut (DMU, FT, impact). Seule la liste des FT est disponible, l'impact ne peut pas être évalué.")
+        status_sources = {
+            "statut_dmu", "statut_ft", "statut_impact", "info_ft", "info_montage",
+            "kpi_montage", "kpi_confiance", "impact_global"
+        }
+        if not status_sources & set(df.columns):
+            warns.append(f"{proto} : aucune colonne de statut exploitable n'a été trouvée dans la feuille FT. L'impact ne peut pas être évalué.")
         elif "proto_impact" not in df.columns:
             warns.append(f"{proto} : pas de colonne proto_impact, toutes les FT sont prises sans filtrage de périmètre.")
     for protos in sigs.values():
         if len(protos) > 1:
-            warns.append(f"{' et '.join(map(str, protos))} : feuilles FT strictement identiques. Vérifier qu'il ne s'agit pas d'une copie du même fichier.")
+            warns.append(f"{' et '.join(map(str, protos))} : contenus FT strictement identiques après lecture. Vérifier si ces prototypes partagent volontairement la même base ou si un fichier a été dupliqué.")
     for proto, g in (ft.groupby("prototype") if not ft.empty else []):
         if g["couverture"].eq("Aucun statut").mean() > 0.5:
             warns.append(f"{proto} : {g['couverture'].eq('Aucun statut').mean():.0%} des FT n'ont aucun statut, les risques affichés sont sous-estimés.")
